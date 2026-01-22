@@ -6,33 +6,44 @@ echo "=========================================="
 echo "   NitroCache API Demo"
 echo "=========================================="
 echo ""
+
+# Check if jq is installed
+if ! command -v jq &> /dev/null; then
+    echo "⚠️  Note: 'jq' is not installed. JSON output will not be formatted."
+    echo "   Install jq for better readability: sudo apt-get install jq"
+    echo ""
+    JQ_CMD="cat"
+else
+    JQ_CMD="jq"
+fi
+
 echo "Make sure the API is running (dotnet run in NitroCache.Api)"
 echo "Press Enter to continue..."
 read
 
 echo ""
 echo "1️⃣  Testing Health Endpoint..."
-curl -s "${API_URL}/health" | jq
+curl -s "${API_URL}/health" | $JQ_CMD
 sleep 2
 
 echo ""
 echo "2️⃣  Getting All Products (First Request - Cache Miss)..."
-time curl -s "${API_URL}/api/products" | jq '. | length'
+time curl -s "${API_URL}/api/products" | $JQ_CMD '. | length'
 sleep 2
 
 echo ""
 echo "3️⃣  Getting All Products Again (Cache Hit - Should be Faster)..."
-time curl -s "${API_URL}/api/products" | jq '. | length'
+time curl -s "${API_URL}/api/products" | $JQ_CMD '. | length'
 sleep 2
 
 echo ""
 echo "4️⃣  Getting Product #1..."
-curl -s "${API_URL}/api/products/1" | jq
+curl -s "${API_URL}/api/products/1" | $JQ_CMD
 sleep 2
 
 echo ""
 echo "5️⃣  Getting Products in Electronics Category..."
-curl -s "${API_URL}/api/products/category/Electronics" | jq '. | length'
+curl -s "${API_URL}/api/products/category/Electronics" | $JQ_CMD '. | length'
 sleep 2
 
 echo ""
@@ -43,7 +54,7 @@ sleep 2
 
 echo ""
 echo "7️⃣  Getting Product #1 Again (Cache Miss)..."
-curl -s "${API_URL}/api/products/1" | jq
+curl -s "${API_URL}/api/products/1" | $JQ_CMD
 sleep 2
 
 echo ""

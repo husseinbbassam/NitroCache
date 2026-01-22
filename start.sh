@@ -14,7 +14,7 @@ fi
 
 # Check if .NET is installed
 if ! command -v dotnet &> /dev/null; then
-    echo "❌ .NET is not installed. Please install .NET 9 SDK."
+    echo "❌ .NET is not installed. Please install .NET 9 SDK or later."
     echo "   Visit: https://dotnet.microsoft.com/download"
     exit 1
 fi
