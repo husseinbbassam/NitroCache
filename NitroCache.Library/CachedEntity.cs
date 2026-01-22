@@ -46,13 +46,6 @@ public class CachedData<T>
 /// This provides ultra-fast serialization without reflection
 /// </summary>
 [JsonSerializable(typeof(CachedEntity))]
-[JsonSerializable(typeof(CachedData<object>))]
-[JsonSerializable(typeof(CachedData<string>))]
-[JsonSerializable(typeof(CachedData<int>))]
-[JsonSerializable(typeof(CachedData<bool>))]
-[JsonSerializable(typeof(CachedData<double>))]
-[JsonSerializable(typeof(CachedData<decimal>))]
-[JsonSerializable(typeof(CachedData<DateTime>))]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(Dictionary<string, List<string>>))]
 [JsonSourceGenerationOptions(

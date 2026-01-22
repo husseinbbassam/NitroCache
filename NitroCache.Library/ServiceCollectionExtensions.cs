@@ -49,13 +49,6 @@ public static class ServiceCollectionExtensions
 
             hybridOptions.MaximumPayloadBytes = 1024 * 1024; // 1MB max payload
             hybridOptions.MaximumKeyLength = 512;
-
-            // Configure serialization with source generators for optimal performance
-            // This avoids reflection at runtime
-            var jsonOptions = new JsonSerializerOptions
-            {
-                TypeInfoResolverChain = { NitroCacheJsonContext.Default }
-            };
         });
 
         // Register cache serializer for Redis (L2) - only if Redis is available

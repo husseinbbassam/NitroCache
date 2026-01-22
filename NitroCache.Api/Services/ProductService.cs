@@ -33,6 +33,8 @@ public class ProductService
         _logger.LogInformation("Getting product {ProductId} (will use cache if available)", id);
         
         // Cache with tags for invalidation
+        // Note: We can't include Category tag here without fetching the product first
+        // So we only use Product_ID and All_Products tags
         var product = await _cacheService.GetOrSetWithTagsAsync(
             cacheKey,
             async ct =>
@@ -43,17 +45,6 @@ public class ProductService
             new[] { "All_Products", $"Product_{id}" },
             TimeSpan.FromMinutes(5),
             cancellationToken);
-
-        // If product is found, add category tag
-        if (product != null)
-        {
-            await _cacheService.GetOrSetWithTagsAsync(
-                cacheKey,
-                async ct => product,
-                new[] { "All_Products", $"Product_{id}", $"Category_{product.Category}" },
-                TimeSpan.FromMinutes(5),
-                cancellationToken);
-        }
 
         return product;
     }

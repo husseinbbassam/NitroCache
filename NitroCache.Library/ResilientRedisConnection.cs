@@ -31,8 +31,8 @@ public class ResilientRedisConnection
         _circuitBreaker = new ResiliencePipelineBuilder()
             .AddCircuitBreaker(new CircuitBreakerStrategyOptions
             {
-                // Open circuit after 3 consecutive failures
-                FailureRatio = 0.5,
+                // Open circuit after 3 consecutive failures (100% failure rate)
+                FailureRatio = 1.0,
                 SamplingDuration = TimeSpan.FromSeconds(30),
                 MinimumThroughput = 3,
                 BreakDuration = TimeSpan.FromSeconds(30),
