@@ -97,6 +97,15 @@ app.MapDelete("/api/products/cache", async (ProductService productService, Cance
 .WithOpenApi()
 .Produces(StatusCodes.Status204NoContent);
 
+app.MapDelete("/api/products/category/{category}/cache", async (string category, ProductService productService, CancellationToken ct) =>
+{
+    await productService.InvalidateCategoryCacheAsync(category, ct);
+    return Results.NoContent();
+})
+.WithName("InvalidateCategoryCache")
+.WithOpenApi()
+.Produces(StatusCodes.Status204NoContent);
+
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
     .WithName("HealthCheck")

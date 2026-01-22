@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
+using System.Text.Json;
 
 namespace NitroCache.Library;
 
@@ -26,7 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConnectionMultiplexer>(sp =>
             ConnectionMultiplexer.Connect(options.RedisConnectionString));
 
-        // Register HybridCache with configuration
+        // Register HybridCache with configuration and source generator context
         services.AddHybridCache(hybridOptions =>
         {
             hybridOptions.DefaultEntryOptions = new HybridCacheEntryOptions
@@ -37,6 +38,13 @@ public static class ServiceCollectionExtensions
 
             hybridOptions.MaximumPayloadBytes = 1024 * 1024; // 1MB max payload
             hybridOptions.MaximumKeyLength = 512;
+
+            // Configure serialization with source generators for optimal performance
+            // This avoids reflection at runtime
+            var jsonOptions = new JsonSerializerOptions
+            {
+                TypeInfoResolverChain = { NitroCacheJsonContext.Default }
+            };
         });
 
         // Register cache serializer for Redis (L2)
