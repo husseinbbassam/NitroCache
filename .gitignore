@@ -1,0 +1,40 @@
+## Build artifacts
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+
+## IDE files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+## Test results
+TestResults/
+*.trx
+
+## Benchmark results
+BenchmarkDotNet.Artifacts/
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## Logs
+*.log
+
+## Temporary files
+*.tmp
