@@ -1,6 +1,6 @@
 #!/bin/bash
 
-API_URL="http://localhost:5000"
+API_URL="http://localhost:5040"
 
 echo "=========================================="
 echo "   NitroCache API Demo"

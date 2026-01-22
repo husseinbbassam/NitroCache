@@ -49,28 +49,28 @@ cd NitroCache.Api
 dotnet run
 ```
 
-The API will be available at `http://localhost:5000` (or `https://localhost:5001`)
+The API will be available at `http://localhost:5040` (or `https://localhost:7191`)
 
 ### 3. Test the Endpoints
 
 ```bash
 # Get all products (with caching)
-curl http://localhost:5000/api/products
+curl http://localhost:5040/api/products
 
 # Get a specific product
-curl http://localhost:5000/api/products/1
+curl http://localhost:5040/api/products/1
 
 # Get products by category
-curl http://localhost:5000/api/products/category/Electronics
+curl http://localhost:5040/api/products/category/Electronics
 
 # Invalidate cache for a product
-curl -X DELETE http://localhost:5000/api/products/1/cache
+curl -X DELETE http://localhost:5040/api/products/1/cache
 
 # Invalidate all product caches
-curl -X DELETE http://localhost:5000/api/products/cache
+curl -X DELETE http://localhost:5040/api/products/cache
 
 # Health check
-curl http://localhost:5000/health
+curl http://localhost:5040/health
 ```
 
 ### 4. Run Benchmarks
