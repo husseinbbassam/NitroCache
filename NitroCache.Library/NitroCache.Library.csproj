@@ -1,14 +1,49 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    
+    <!-- NuGet Package Metadata -->
+    <PackageId>NitroCache.Library</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Hussein Bassam</Authors>
+    <Company>NitroCache</Company>
+    <Description>High-performance hybrid caching library for .NET 9+ with L1 (in-memory) and L2 (Redis) support. Features tag-based invalidation, cache stampede protection, source generator serialization, and circuit breaker resilience.</Description>
+    <PackageTags>cache;caching;redis;hybrid-cache;distributed-cache;performance;l1-cache;l2-cache;tag-invalidation;circuit-breaker</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/husseinbbassam/NitroCache</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/husseinbbassam/NitroCache</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>
+      v1.0.0 - Initial release
+      - Hybrid caching (L1 + L2)
+      - Tag-based invalidation
+      - JSON source generators
+      - Circuit breaker resilience
+      - Distributed locking
+    </PackageReleaseNotes>
+    
+    <!-- Documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    
+    <!-- Code Quality -->
+    <WarningLevel>9999</WarningLevel>
+    <NoWarn>CS8634;CS8621</NoWarn><!-- Suppress nullable warnings for IConnectionMultiplexer -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.2.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.2" />
+    <PackageReference Include="Polly" Version="8.6.5" />
     <PackageReference Include="RedLock.net" Version="2.3.2" />
     <PackageReference Include="StackExchange.Redis" Version="2.10.1" />
     <PackageReference Include="System.Text.Json" Version="10.0.2" />

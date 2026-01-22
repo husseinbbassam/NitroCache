@@ -5,9 +5,11 @@ A high-performance caching solution built with .NET 9 and C# 13, demonstrating *
 ## 🚀 Features
 
 - **Hybrid Caching**: L1 (in-memory) + L2 (Redis) for ultra-fast data access
+- **Tag-based Invalidation**: Invalidate multiple cache entries at once using tags (NEW!)
 - **Cache Stampede Protection**: Built-in locking mechanism prevents thundering herd
 - **Distributed Locking**: RedLock.net implementation for multi-instance synchronization
 - **Source Generators**: System.Text.Json source generators for optimal serialization
+- **Circuit Breaker Resilience**: Automatically downgrades to L1-only mode when Redis fails (NEW!)
 - **Generic API**: Clean `ICacheService` interface for easy integration
 - **Benchmarks**: BenchmarkDotNet comparison of No-Cache vs Redis-only vs Hybrid
 
@@ -66,6 +68,9 @@ curl http://localhost:5040/api/products/category/Electronics
 # Invalidate cache for a product
 curl -X DELETE http://localhost:5040/api/products/1/cache
 
+# Invalidate all products in a category (tag-based invalidation)
+curl -X DELETE http://localhost:5040/api/products/category/Electronics/cache
+
 # Invalidate all product caches
 curl -X DELETE http://localhost:5040/api/products/cache
 
@@ -82,18 +87,29 @@ dotnet run -c Release
 
 ## 📊 Performance Results
 
-The benchmarks compare three scenarios:
+The benchmarks compare three scenarios with a **10KB payload**:
 
-1. **No Cache (Baseline)**: Direct database access (~10ms latency)
+1. **Mock Database (100ms latency)**: Simulates real database query
 2. **Redis Only**: L2 distributed cache only
-3. **Hybrid Cache**: L1 (in-memory) + L2 (Redis)
-4. **Hybrid Cache (Warm L1)**: Best case with L1 cache hit
+3. **Hybrid Cache (RAM hit)**: Best case with L1 cache hit
 
 Expected results:
-- **Hybrid Cache (Warm L1)**: Sub-millisecond access (~0.1ms)
-- **Hybrid Cache (Cold L1, Warm L2)**: ~1-2ms
+- **Hybrid Cache (RAM hit)**: Sub-millisecond access (~0.1-0.5ms) - **200x faster than database!**
 - **Redis Only**: ~2-5ms
-- **No Cache**: ~10ms (baseline)
+- **Mock Database**: ~100ms (baseline)
+
+### Benchmark Results
+
+Run benchmarks with:
+```bash
+cd NitroCache.Benchmarks
+dotnet run -c Release
+```
+
+Performance characteristics:
+- **L1 (RAM) Hit**: < 0.5ms - Fastest possible access
+- **L2 (Redis) Hit**: 1-3ms - Fast distributed access
+- **Database Miss**: 100ms+ - Slow but authoritative
 
 ## 🔧 Configuration
 
@@ -134,6 +150,31 @@ public class MyService
             $"mydata:{id}",
             async ct => await _database.GetDataAsync(id, ct),
             TimeSpan.FromMinutes(5));
+    }
+}
+```
+
+### Tag-based Invalidation (NEW!)
+
+```csharp
+public class ProductService
+{
+    private readonly ICacheService _cacheService;
+
+    public async Task<Product?> GetProductAsync(int id)
+    {
+        // Cache with tags for group invalidation
+        return await _cacheService.GetOrSetWithTagsAsync(
+            $"product:{id}",
+            async ct => await _database.GetProductAsync(id, ct),
+            new[] { "All_Products", $"Product_{id}", $"Category_{categoryId}" },
+            TimeSpan.FromMinutes(5));
+    }
+
+    public async Task InvalidateCategoryAsync(string category)
+    {
+        // Invalidate all products in this category at once!
+        await _cacheService.RemoveByTagAsync($"Category_{category}");
     }
 }
 ```
@@ -185,7 +226,30 @@ Optimal serialization performance using C# 13 source generators:
 public partial class ProductJsonContext : JsonSerializerContext { }
 ```
 
-### 4. Distributed Locking
+### 4. Tag-based Invalidation (NEW!)
+
+Efficiently invalidate related cache entries:
+
+```csharp
+// When updating a product, invalidate all related caches
+await _cacheService.RemoveByTagsAsync(new[] { 
+    $"Product_{id}", 
+    $"Category_{category}", 
+    "All_Products" 
+});
+```
+
+### 5. Circuit Breaker Resilience (NEW!)
+
+Polly circuit breaker automatically handles Redis failures:
+
+```csharp
+// If Redis fails, automatically downgrade to L1-only mode
+// Logs warning and continues serving from in-memory cache
+// Automatically retries and restores L2 when Redis recovers
+```
+
+### 6. Distributed Locking
 
 RedLock algorithm implementation for distributed systems:
 
@@ -202,9 +266,13 @@ if (redLock.IsAcquired)
 
 1. **Performance**: Sub-millisecond response times with L1 hits
 2. **Scalability**: Redis L2 ensures consistency across instances
-3. **Reliability**: Stampede protection prevents database overload
-4. **Maintainability**: Clean interfaces and dependency injection
-5. **Observability**: Built-in logging at all levels
+3. **Reliability**: 
+   - Stampede protection prevents database overload
+   - Circuit breaker ensures graceful degradation
+   - Automatic fallback to L1-only mode
+4. **Flexibility**: Tag-based invalidation for complex cache patterns
+5. **Maintainability**: Clean interfaces and dependency injection
+6. **Observability**: Built-in logging at all levels
 
 ## 🧪 Testing
 

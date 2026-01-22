@@ -1,18 +1,17 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using NitroCache.Library;
-using StackExchange.Redis;
+using System.Text;
 
 namespace NitroCache.Benchmarks;
 
 /// <summary>
-/// Benchmark comparing No-Cache vs Redis-only vs Hybrid-Cache (L1/L2)
+/// Benchmark comparing Mock Database (100ms) vs Redis-only vs In-Memory cache
+/// Tests with 10KB payload to simulate real-world scenarios
+/// Note: HybridCache requires ASP.NET Core host for keyed services support
 /// </summary>
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
@@ -20,26 +19,19 @@ namespace NitroCache.Benchmarks;
 public class CachingBenchmarks
 {
     private ServiceProvider? _serviceProvider;
-    private ICacheService? _hybridCacheService;
+    private IMemoryCache? _memoryCache;
     private IDistributedCache? _redisCache;
     private const string TestKey = "benchmark:test:1";
-    private readonly TestData _testData = new(1, "Benchmark Product", "High-performance test data");
+    private TestData? _testData;
+    private string? _serializedData;
 
     [GlobalSetup]
     public void Setup()
     {
         var services = new ServiceCollection();
 
-        // Add logging
-        services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
-
-        // Configure NitroCache (Hybrid)
-        services.AddNitroCache(options =>
-        {
-            options.RedisConnectionString = "localhost:6379";
-            options.DefaultExpiration = TimeSpan.FromMinutes(5);
-            options.LocalCacheExpiration = TimeSpan.FromMinutes(1);
-        });
+        // Configure Memory cache (L1)
+        services.AddMemoryCache();
 
         // Configure Redis-only cache for comparison
         services.AddStackExchangeRedisCache(options =>
@@ -49,8 +41,37 @@ public class CachingBenchmarks
         });
 
         _serviceProvider = services.BuildServiceProvider();
-        _hybridCacheService = _serviceProvider.GetRequiredService<ICacheService>();
+        _memoryCache = _serviceProvider.GetRequiredService<IMemoryCache>();
         _redisCache = _serviceProvider.GetRequiredService<IDistributedCache>();
+
+        // Create a ~10KB test data object
+        _testData = CreateLargeTestData();
+        _serializedData = System.Text.Json.JsonSerializer.Serialize(_testData);
+    }
+
+    /// <summary>
+    /// Creates a test data object that is approximately 10KB in size
+    /// </summary>
+    private TestData CreateLargeTestData()
+    {
+        // Create a large string to reach ~10KB
+        var largeDescription = new StringBuilder();
+        var baseText = "This is a sample product description with many details about the product features, specifications, and benefits. ";
+        
+        // Repeat the text until we reach approximately 10KB
+        while (largeDescription.Length < 10000)
+        {
+            largeDescription.Append(baseText);
+        }
+
+        return new TestData(
+            Id: 1,
+            Name: "High-Performance Benchmark Product",
+            Description: largeDescription.ToString(),
+            Category: "Electronics",
+            Price: 999.99m,
+            Metadata: Enumerable.Range(1, 100).Select(i => new KeyValuePair<string, string>($"key{i}", $"value{i}")).ToList()
+        );
     }
 
     [GlobalCleanup]
@@ -60,21 +81,21 @@ public class CachingBenchmarks
     }
 
     /// <summary>
-    /// Baseline: No caching, direct data access
+    /// Baseline: Mock database with 100ms simulated latency
     /// </summary>
     [Benchmark(Baseline = true)]
-    public async Task<TestData> NoCache()
+    public async Task<TestData> MockDatabase_100ms()
     {
-        // Simulate database query (10ms latency)
-        await Task.Delay(10);
-        return _testData;
+        // Simulate database query with 100ms latency
+        await Task.Delay(100);
+        return _testData!;
     }
 
     /// <summary>
-    /// Redis-only caching (L2 only)
+    /// Redis-only caching (L2 only) with 10KB payload
     /// </summary>
     [Benchmark]
-    public async Task<TestData?> RedisOnlyCache()
+    public async Task<TestData?> RedisOnly_10KB()
     {
         if (_redisCache == null) throw new InvalidOperationException("Redis cache not initialized");
 
@@ -85,10 +106,9 @@ public class CachingBenchmarks
         }
 
         // Simulate database query
-        await Task.Delay(10);
+        await Task.Delay(100);
         
-        var jsonData = System.Text.Json.JsonSerializer.Serialize(_testData);
-        await _redisCache.SetStringAsync(TestKey, jsonData, new DistributedCacheEntryOptions
+        await _redisCache.SetStringAsync(TestKey, _serializedData!, new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
         });
@@ -97,52 +117,33 @@ public class CachingBenchmarks
     }
 
     /// <summary>
-    /// Hybrid cache (L1 in-memory + L2 Redis)
+    /// In-memory cache (L1 only) with 10KB payload - fastest scenario
     /// </summary>
     [Benchmark]
-    public async Task<TestData?> HybridCache()
+    public async Task<TestData?> InMemoryCache_10KB()
     {
-        if (_hybridCacheService == null) throw new InvalidOperationException("Hybrid cache not initialized");
+        if (_memoryCache == null) throw new InvalidOperationException("Memory cache not initialized");
 
-        return await _hybridCacheService.GetOrSetAsync(
-            TestKey,
-            async ct =>
-            {
-                // Simulate database query
-                await Task.Delay(10, ct);
-                return _testData;
-            },
-            TimeSpan.FromMinutes(5));
+        // Try to get from memory cache
+        if (_memoryCache.TryGetValue(TestKey, out TestData? cachedValue))
+        {
+            return cachedValue;
+        }
+
+        // Simulate database query
+        await Task.Delay(100);
+        
+        // Cache the result
+        _memoryCache.Set(TestKey, _testData, TimeSpan.FromMinutes(5));
+
+        return _testData;
     }
 
-    /// <summary>
-    /// Hybrid cache with cache hit (best case - L1 hit)
-    /// </summary>
-    [Benchmark]
-    public async Task<TestData?> HybridCacheWarmL1()
-    {
-        if (_hybridCacheService == null) throw new InvalidOperationException("Hybrid cache not initialized");
-
-        // Pre-warm the cache
-        await _hybridCacheService.GetOrSetAsync(
-            TestKey + ":warm",
-            async ct =>
-            {
-                await Task.Delay(10, ct);
-                return _testData;
-            },
-            TimeSpan.FromMinutes(5));
-
-        // Now measure the cache hit
-        return await _hybridCacheService.GetOrSetAsync(
-            TestKey + ":warm",
-            async ct =>
-            {
-                await Task.Delay(10, ct);
-                return _testData;
-            },
-            TimeSpan.FromMinutes(5));
-    }
-
-    public record TestData(int Id, string Name, string Description);
+    public record TestData(
+        int Id, 
+        string Name, 
+        string Description, 
+        string Category, 
+        decimal Price, 
+        List<KeyValuePair<string, string>> Metadata);
 }
