@@ -14,7 +14,7 @@ public class HybridCacheService : ICacheService
     private readonly HybridCache _hybridCache;
     private readonly ILogger<HybridCacheService> _logger;
     private readonly TimeSpan _defaultExpiration;
-    private readonly IConnectionMultiplexer? _redis;
+    private readonly ResilientRedisConnection? _resilientRedis;
     
     // In-memory tag-to-keys mapping for tag-based invalidation
     // Key: tag name, Value: set of cache keys
@@ -27,12 +27,25 @@ public class HybridCacheService : ICacheService
     public HybridCacheService(
         HybridCache hybridCache,
         ILogger<HybridCacheService> logger,
-        IConnectionMultiplexer? redis = null)
+        ResilientRedisConnection? resilientRedis = null)
     {
         _hybridCache = hybridCache ?? throw new ArgumentNullException(nameof(hybridCache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _redis = redis;
+        _resilientRedis = resilientRedis;
         _defaultExpiration = TimeSpan.FromMinutes(5);
+
+        // Log initial cache mode
+        if (_resilientRedis?.IsInDegradedMode == true)
+        {
+            _logger.LogWarning(
+                "NitroCache starting in DEGRADED MODE (L1-only). Redis is unavailable. " +
+                "Only in-memory caching is active.");
+        }
+        else
+        {
+            _logger.LogInformation(
+                "NitroCache starting in NORMAL MODE. Hybrid cache (L1 + L2) is active.");
+        }
     }
 
     /// <inheritdoc />
@@ -53,7 +66,14 @@ public class HybridCacheService : ICacheService
                 LocalCacheExpiration = TimeSpan.FromMinutes(1) // L1 cache
             };
 
-            _logger.LogDebug("Getting or creating cache entry for key: {Key}", key);
+            if (_resilientRedis?.IsInDegradedMode == true)
+            {
+                _logger.LogDebug("Operating in L1-only mode for key: {Key}", key);
+            }
+            else
+            {
+                _logger.LogDebug("Getting or creating cache entry for key: {Key}", key);
+            }
 
             // HybridCache.GetOrCreateAsync provides built-in stampede protection
             // If multiple requests hit the same key, only one will execute the factory

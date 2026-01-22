@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System.Text.Json;
 
@@ -23,9 +24,19 @@ public static class ServiceCollectionExtensions
         var options = new NitroCacheOptions();
         configure?.Invoke(options);
 
-        // Register Redis connection
-        services.AddSingleton<IConnectionMultiplexer>(sp =>
-            ConnectionMultiplexer.Connect(options.RedisConnectionString));
+        // Register resilient Redis connection with circuit breaker
+        services.AddSingleton(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<ResilientRedisConnection>>();
+            return new ResilientRedisConnection(options.RedisConnectionString, logger);
+        });
+
+        // Register Redis connection (may be null if in degraded mode)
+        services.AddSingleton(sp =>
+        {
+            var resilientConnection = sp.GetRequiredService<ResilientRedisConnection>();
+            return resilientConnection.Connection;
+        });
 
         // Register HybridCache with configuration and source generator context
         services.AddHybridCache(hybridOptions =>
@@ -47,7 +58,7 @@ public static class ServiceCollectionExtensions
             };
         });
 
-        // Register cache serializer for Redis (L2)
+        // Register cache serializer for Redis (L2) - only if Redis is available
         services.AddStackExchangeRedisCache(redisOptions =>
         {
             redisOptions.Configuration = options.RedisConnectionString;
