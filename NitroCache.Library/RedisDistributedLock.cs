@@ -15,6 +15,11 @@ public class RedisDistributedLock : IDistributedLock, IDisposable
     private readonly IDistributedLockFactory _lockFactory;
     private readonly ILogger<RedisDistributedLock> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the RedisDistributedLock class
+    /// </summary>
+    /// <param name="connectionMultiplexer">The Redis connection multiplexer</param>
+    /// <param name="logger">The logger instance</param>
     public RedisDistributedLock(
         IConnectionMultiplexer connectionMultiplexer,
         ILogger<RedisDistributedLock> logger)
@@ -111,6 +116,9 @@ public class RedisDistributedLock : IDistributedLock, IDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the distributed lock factory
+    /// </summary>
     public void Dispose()
     {
         (_lockFactory as IDisposable)?.Dispose();

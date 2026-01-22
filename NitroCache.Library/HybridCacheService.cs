@@ -24,6 +24,12 @@ public class HybridCacheService : ICacheService
     // Key: cache key, Value: set of tags
     private readonly ConcurrentDictionary<string, ConcurrentHashSet<string>> _keyToTags = new();
 
+    /// <summary>
+    /// Initializes a new instance of the HybridCacheService class
+    /// </summary>
+    /// <param name="hybridCache">The hybrid cache instance</param>
+    /// <param name="logger">The logger instance</param>
+    /// <param name="resilientRedis">The resilient Redis connection (optional)</param>
     public HybridCacheService(
         HybridCache hybridCache,
         ILogger<HybridCacheService> logger,

@@ -16,6 +16,11 @@ public class ResilientRedisConnection
     private IConnectionMultiplexer? _connection;
     private bool _isInDegradedMode;
 
+    /// <summary>
+    /// Initializes a new instance of the ResilientRedisConnection class
+    /// </summary>
+    /// <param name="connectionString">The Redis connection string</param>
+    /// <param name="logger">The logger instance</param>
     public ResilientRedisConnection(
         string connectionString,
         ILogger<ResilientRedisConnection> logger)
